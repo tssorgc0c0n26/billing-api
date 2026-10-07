@@ -1,0 +1,23 @@
+name: Prepare release metadata
+description: Resolve a release request into build metadata
+inputs:
+  request:
+    description: Release request copied from an issue comment
+    required: true
+outputs:
+  service:
+    value: ${{ steps.parse.outputs.service }}
+  release_ref:
+    value: ${{ steps.parse.outputs.release_ref }}
+runs:
+  using: composite
+  steps:
+    - id: parse
+      shell: bash
+      env:
+        RELEASE_REQUEST: ${{ inputs.request }}
+      run: |
+        service=$(printf '%s' "$RELEASE_REQUEST" | awk '{print $2}')
+        release_ref=$(printf '%s' "$RELEASE_REQUEST" | awk '{print $3}')
+        printf 'service=%s\n' "$service" >> "$GITHUB_OUTPUT"
+        printf 'release_ref=%s\n' "$release_ref" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,45 @@
+name: Release Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      request:
+        description: Release request in slash-command format
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  prepare-and-publish:
+    runs-on: ubuntu-latest
+    env:
+      SIGNING_KEY_B64: ${{ secrets.RELEASE_SIGNING_KEY_B64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve request
+        id: release
+        uses: ./.github/actions/prepare-release
+        with:
+          request: ${{ inputs.request }}
+      - name: Require billing-api
+        env:
+          SERVICE: ${{ steps.release.outputs.service }}
+        run: |
+          if [[ "$SERVICE" != "billing-api" ]]; then
+            echo "refusing service: $SERVICE"
+            exit 1
+          fi
+      - name: Check out requested source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.release_ref }}
+          path: release-source
+      - name: Publish signed release
+        run: ./scripts/publish-release.sh
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.release_ref }}
+          files: dist/*
